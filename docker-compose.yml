@@ -1,0 +1,45 @@
+services:
+  # ---------- NGINX reverse proxy ----------
+  reverse-proxy:
+    image: nginx:1.27-alpine
+    container_name: reverse-proxy
+    ports:
+      - "8080:80" # Punto central de entrada
+    volumes:
+      - ./reverse-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - servicio-empresas-cufd
+    networks:
+      - siat-net
+
+  # ---------- Servicio Empresas-CUFD ----------
+  servicio-empresas-cufd:
+    build:
+      context: ./services/servicio-empresas-cufd
+    container_name: servicio-empresas-cufd
+    env_file:
+      - ./services/servicio-empresas-cufd/.env # MONGO_URI
+    depends_on:
+      - mongo_empresas
+    networks:
+      - siat-net
+
+  # ---------- Mongo de Empresas ----------
+  mongo_empresas:
+    image: mongo:6
+    container_name: mongo_empresas
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: root
+    # Para usar compass
+    ports:
+      - "27018:27017"
+    volumes:
+      - ./services/servicio-empresas-cufd/_data/mongo:/data/db
+      - ./services/servicio-empresas-cufd/scripts/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+    networks:
+      - siat-net
+
+networks:
+  siat-net:

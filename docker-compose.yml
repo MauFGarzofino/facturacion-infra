@@ -12,6 +12,18 @@ services:
     networks:
       - siat-net
 
+  # ---------- Servicio Recepcion de Facturacion ----------
+  ms_rfacturacion:
+    build: ./recepcion_facturacion
+    image: recepcion_facturacion:1.0
+    container_name: recepcion_facturacion
+    restart: always
+    env_file:
+      - ./services/recepcion_facturacion/.env
+    depends_on:
+      - db_postgres_rf
+    networks:
+      - siat-net
   # ---------- Servicio Empresas-CUFD ----------
   servicio-empresas-cufd:
     build:
@@ -24,6 +36,18 @@ services:
     networks:
       - siat-net
 
+  # ---------- Postgres de Recepcion de Facturacion ----------
+  db_postgres_rf:
+    image: postgres:alpine3.22
+    container_name: db_postgres_rf
+    restart: always
+    env_file:
+      - .env.db_postgres_rf
+    volumes:
+      - pg_data_rf:/var/lib/postgresql/data
+      - ./dbconfig/init_rf.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - siat-net
   # ---------- Mongo de Empresas ----------
   mongo_empresas:
     image: mongo:6
@@ -41,5 +65,7 @@ services:
     networks:
       - siat-net
 
+volumes:
+  pg_data_rf:
 networks:
   siat-net:

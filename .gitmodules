@@ -1,3 +1,6 @@
 [submodule "services/servicio-empresas-cufd"]
 	path = services/servicio-empresas-cufd
 	url = https://github.com/MauFGarzofino/servicio-empresas-cufd.git
+[submodule "services/recepion_de_facturacion"]
+	path = services/recepion_de_facturacion
+	url = https://github.com/nmmartinezp/recepion_de_facturacion.git

@@ -12,6 +12,27 @@ services:
     networks:
       - siat-net
 
+  # ---------- Servicio de Autenticación ----------
+  auth-service:
+    build:
+      # IMPORTANTE: La ruta ahora incluye 'services/' por el submódulo
+      context: ./services/auth-service 
+      dockerfile: Dockerfile
+    container_name: auth-service
+    ports:
+      - "8001:8000" # Debug port
+    environment:
+      # OJO: El host de mongo ahora es 'mongo_auth' (nombre del contenedor de abajo)
+      - DATABASE_URL=mongodb://mongo_auth:27017/authdb
+      - SECRET_KEY=ESTA_ES_UNA_CLAVE_MUY_SECRETA_PARA_PROD_CAMBIAME
+    volumes:
+      # Montamos el volumen para desarrollo
+      - ./services/auth-service:/app
+    depends_on:
+      - mongo_auth
+    networks:
+      - siat-net
+
   # ---------- Servicio Recepcion de Facturacion ----------
   ms_rfacturacion:
     build: ./recepcion_facturacion
@@ -48,6 +69,20 @@ services:
       - ./dbconfig/init_rf.sql:/docker-entrypoint-initdb.d/init.sql:ro
     networks:
       - siat-net
+
+  # ---------- Mongo de Autenticación (Separado) ----------
+  mongo_auth:
+    image: mongo:latest
+    container_name: mongo_auth
+    restart: always
+    ports:
+      # Usamos 27019 en el host para no chocar con mongo_empresas (27018) ni tu local (27017)
+      - "27019:27017"
+    volumes:
+      - mongo_auth_data:/data/db
+    networks:
+      - siat-net
+
   # ---------- Mongo de Empresas ----------
   mongo_empresas:
     image: mongo:6
@@ -67,5 +102,6 @@ services:
 
 volumes:
   pg_data_rf:
+  mongo_auth_data:
 networks:
   siat-net:

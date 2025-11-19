@@ -4,3 +4,6 @@
 [submodule "services/recepion_de_facturacion"]
 	path = services/recepion_de_facturacion
 	url = https://github.com/nmmartinezp/recepion_de_facturacion.git
+[submodule "services/notificaciones"]
+	path = services/notificaciones
+	url = https://github.com/noegonzalespereira/microservicio-notificacion.git

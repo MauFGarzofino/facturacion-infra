@@ -1,10 +1,14 @@
+version: '3.8'
+
 services:
-  # ---------- NGINX reverse proxy ----------
+  # ======================================
+  # REVERSE PROXY
+  # ======================================
   reverse-proxy:
     image: nginx:1.27-alpine
     container_name: reverse-proxy
     ports:
-      - "8080:80" # Punto central de entrada
+      - "8080:80"
     volumes:
       - ./reverse-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
@@ -12,43 +16,25 @@ services:
     networks:
       - siat-net
 
-  # ---------- Servicio Recepcion de Facturacion ----------
-  ms_rfacturacion:
-    build: ./recepcion_facturacion
-    image: recepcion_facturacion:1.0
-    container_name: recepcion_facturacion
-    restart: always
-    env_file:
-      - ./services/recepcion_facturacion/.env
-    depends_on:
-      - db_postgres_rf
-    networks:
-      - siat-net
-  # ---------- Servicio Empresas-CUFD ----------
+  # ======================================
+  # SERVICIO EMPRESAS (NestJS)
+  # ======================================
   servicio-empresas-cufd:
     build:
       context: ./services/servicio-empresas-cufd
     container_name: servicio-empresas-cufd
     env_file:
-      - ./services/servicio-empresas-cufd/.env # MONGO_URI
+      - ./services/servicio-empresas-cufd/.env
+    environment:
+      - LOGSTASH_HOST=logstash
+      - LOGSTASH_PORT=5044
     depends_on:
       - mongo_empresas
+      - logstash
     networks:
       - siat-net
 
-  # ---------- Postgres de Recepcion de Facturacion ----------
-  db_postgres_rf:
-    image: postgres:alpine3.22
-    container_name: db_postgres_rf
-    restart: always
-    env_file:
-      - .env.db_postgres_rf
-    volumes:
-      - pg_data_rf:/var/lib/postgresql/data
-      - ./dbconfig/init_rf.sql:/docker-entrypoint-initdb.d/init.sql:ro
-    networks:
-      - siat-net
-  # ---------- Mongo de Empresas ----------
+  # Mongo del servicio empresas
   mongo_empresas:
     image: mongo:6
     container_name: mongo_empresas
@@ -56,7 +42,6 @@ services:
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
       MONGO_INITDB_ROOT_PASSWORD: root
-    # Para usar compass
     ports:
       - "27018:27017"
     volumes:
@@ -65,7 +50,106 @@ services:
     networks:
       - siat-net
 
+  # ======================================
+  # NOTIFICACIONES (PHP Laravel)
+  # ======================================
+  notifications:
+    build:
+      context: ./services/notificaciones/notifications-ms
+      dockerfile: Dockerfile
+    container_name: notifications
+    env_file:
+      - ./services/notificaciones/notifications-ms/.env
+    depends_on:
+      - mongo_notificaciones
+      - rabbitmq
+      - mailhog
+    volumes:
+      - ./services/notificaciones/notifications-ms:/var/www
+    ports:
+      - "8000:8000"
+    command: bash -lc "php artisan serve --host=0.0.0.0 --port=8000"
+    networks:
+      - siat-net
+
+  # Mongo del servicio notificaciones
+  mongo_notificaciones:
+    image: mongo:6
+    container_name: mongo_notificaciones
+    restart: always
+    volumes:
+      - mongo_notificaciones_data:/data/db
+    networks:
+      - siat-net
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: notifier
+      RABBITMQ_DEFAULT_PASS: notifier123
+    networks:
+      - siat-net
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: mailhog
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    networks:
+      - siat-net
+
+  # ======================================
+  # ELK STACK
+  # ======================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
+    container_name: elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - ES_JAVA_OPTS=-Xms1g -Xmx1g
+    ports:
+      - "9200:9200"
+    networks:
+      - siat-net
+
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.15.0
+    container_name: logstash
+    ports:
+      - "5044:5044"
+    volumes:
+      - ./elk/logstash/pipeline:/usr/share/logstash/pipeline:ro
+    depends_on:
+      - elasticsearch
+    networks:
+      - siat-net
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.15.0
+    container_name: kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_HOST=0.0.0.0
+    ports:
+      - "5601:5601"
+    depends_on:
+      - elasticsearch
+    networks:
+      - siat-net
+
+# ======================================
+# VOLUMES Y NETWORKS
+# ======================================
 volumes:
-  pg_data_rf:
+  mongo_notificaciones_data:
+
+
 networks:
   siat-net:
+    driver: bridge

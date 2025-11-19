@@ -15,6 +15,33 @@ services:
       - servicio-empresas-cufd
     networks:
       - siat-net
+
+  # ======================================
+  # SERVICIO DE AUTENTICACIÓN (FastAPI + gRPC + Mongo + RabbitMQ)
+  # ======================================
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: auth-service
+    environment:
+      # Base de datos Mongo para Auth
+      - DATABASE_URL=mongodb://mongo_auth:27017/authdb
+
+      # RabbitMQ usando las mismas credenciales del compose
+      - RABBITMQ_URL=amqp://notifier:notifier123@rabbitmq/
+
+      # Clave JWT (debe ser la misma siempre mientras dure el entorno)
+      - SECRET_KEY=ESTA_ES_UNA_CLAVE_MUY_SECRETA_PARA_CAMBIAR_EN_PROD
+    depends_on:
+      - mongo_auth
+      - rabbitmq
+    networks:
+      - siat-net
+      # Si quieres probar direct desde tu host (opcional), puedes descomentar:
+    ports:
+      #   - "8001:8000"     # REST (FastAPI)
+      - "50052:50051" # gRPC para Postman
     # ---------- Servicio Recepcion de Facturacion ----------
   ms_rfacturacion:
     build: ./services/recepcion_facturacion
@@ -75,9 +102,22 @@ services:
     networks:
       - siat-net
 
-  # ======================================
-  # NOTIFICACIONES (PHP Laravel)
-  # ======================================
+  # ---------- Mongo de Autenticación ----------
+  mongo_auth:
+    image: mongo:6
+    container_name: mongo_auth
+    restart: always
+    volumes:
+      - mongo_auth_data:/data/db
+    networks:
+      - siat-net
+    # Si quieres verlo desde tu host (opcional):
+    # ports:
+    #   - "27019:27017"
+
+    # ======================================
+    # NOTIFICACIONES (PHP Laravel)
+    # ======================================
   notifications:
     build:
       context: ./services/notificaciones/notifications-ms
@@ -174,6 +214,7 @@ services:
 volumes:
   pg_data_rf:
   mongo_notificaciones_data:
+  mongo_auth_data:
 
 
 networks:

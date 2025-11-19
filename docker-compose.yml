@@ -16,7 +16,7 @@ services:
   auth-service:
     build:
       # IMPORTANTE: La ruta ahora incluye 'services/' por el submódulo
-      context: ./services/auth-service 
+      context: ./services/auth-service
       dockerfile: Dockerfile
     container_name: auth-service
     ports:
@@ -40,7 +40,7 @@ services:
     container_name: recepcion_facturacion
     restart: always
     env_file:
-      - ./services/recepcion_facturacion/.env
+      - .env.ms_rfacturacion
     depends_on:
       - db_postgres_rf
     networks:

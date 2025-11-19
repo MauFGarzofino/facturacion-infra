@@ -15,6 +15,31 @@ services:
       - servicio-empresas-cufd
     networks:
       - siat-net
+    # ---------- Servicio Recepcion de Facturacion ----------
+  ms_rfacturacion:
+    build: ./services/recepcion_facturacion
+    image: recepcion_facturacion:1.0
+    container_name: recepcion_facturacion
+    restart: always
+    env_file:
+      - .env.ms_rfacturacion
+    depends_on:
+      - db_postgres_rf
+    networks:
+      - siat-net
+
+  # ---------- Postgres de Recepcion de Facturacion ----------
+  db_postgres_rf:
+    image: postgres:alpine3.22
+    container_name: db_postgres_rf
+    restart: always
+    env_file:
+      - .env.db_postgres_rf
+    volumes:
+      - pg_data_rf:/var/lib/postgresql/data
+      - ./dbconfig/init_rf.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - siat-net
 
   # ======================================
   # SERVICIO EMPRESAS (NestJS)
@@ -147,6 +172,7 @@ services:
 # VOLUMES Y NETWORKS
 # ======================================
 volumes:
+  pg_data_rf:
   mongo_notificaciones_data:
 
 

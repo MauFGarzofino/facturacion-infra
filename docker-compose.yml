@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ======================================
   # REVERSE PROXY
@@ -38,7 +36,6 @@ services:
       - rabbitmq
     networks:
       - siat-net
-      # Si quieres probar direct desde tu host (opcional), puedes descomentar:
     ports:
       #   - "8001:8000"     # REST (FastAPI)
       - "50052:50051" # gRPC para Postman

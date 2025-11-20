@@ -1,6 +1,3 @@
-[submodule "services/servicio-empresas-cufd"]
-	path = services/servicio-empresas-cufd
-	url = https://github.com/MauFGarzofino/servicio-empresas-cufd.git
 [submodule "services/notificaciones"]
 	path = services/notificaciones
 	url = https://github.com/noegonzalespereira/microservicio-notificacion.git
@@ -10,3 +7,6 @@
 [submodule "services/auth-service"]
 	path = services/auth-service
 	url = https://github.com/Sebastian-Cepeda-Ch/servicio-autentificacion.git
+[submodule "services/servicio-empresas-cufd"]
+	path = services/servicio-empresas-cufd
+	url = https://github.com/MauFGarzofino/servicio-empresas-cufd.git

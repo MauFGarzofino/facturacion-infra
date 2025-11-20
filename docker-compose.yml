@@ -204,6 +204,24 @@ services:
       - elasticsearch
     networks:
       - siat-net
+  
+  # ======================================
+  # GATEWAY GRAPHQL (Integrador)
+  # ======================================
+  graphql-gateway:
+    build:
+      context: ./services/graphql-gateway
+      dockerfile: Dockerfile
+    container_name: graphql-gateway
+    ports:
+      - "8002:8000" # Puerto externo 8002 para no chocar con Auth o Laravel
+    depends_on:
+      - auth-service
+      - servicio-empresas-cufd
+      - ms_rfacturacion
+      - notifications
+    networks:
+      - siat-net
 
 # ======================================
 # VOLUMES Y NETWORKS

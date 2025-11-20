@@ -5,6 +5,7 @@ services:
   reverse-proxy:
     image: nginx:1.27-alpine
     container_name: reverse-proxy
+    restart: always
     ports:
       - "8080:80"
     volumes:
@@ -22,6 +23,7 @@ services:
       context: ./facturacion-frontend
       dockerfile: Dockerfile
     container_name: facturacion-frontend
+    restart: always
     networks:
       - siat-net
 
@@ -33,6 +35,7 @@ services:
       context: ./services/auth-service
       dockerfile: Dockerfile
     container_name: auth-service
+    restart: always
     environment:
       # Base de datos Mongo para Auth
       - DATABASE_URL=mongodb://mongo_auth:27017/authdb
@@ -86,6 +89,7 @@ services:
     build:
       context: ./services/servicio-empresas-cufd
     container_name: servicio-empresas-cufd
+    restart: always
     env_file:
       - ./services/servicio-empresas-cufd/.env
     environment:
@@ -97,7 +101,7 @@ services:
     networks:
       - siat-net
     healthcheck:
-      test: [ "CMD", "sh", "-c", "netstat -tln | grep 50053" ]
+      test: ["CMD", "sh", "-c", "netstat -tln | grep 50053"]
       interval: 5s
       timeout: 2s
       retries: 10
@@ -139,6 +143,7 @@ services:
       context: ./services/notificaciones/notifications-ms
       dockerfile: Dockerfile
     container_name: notifications
+    restart: always
     env_file:
       - ./services/notificaciones/notifications-ms/.env
     depends_on:
@@ -166,6 +171,7 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     container_name: rabbitmq
+    restart: always
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -178,6 +184,7 @@ services:
   mailhog:
     image: mailhog/mailhog
     container_name: mailhog
+    restart: always
     ports:
       - "8025:8025"
       - "1025:1025"
@@ -190,6 +197,7 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
     container_name: elasticsearch
+    restart: always
     environment:
       - discovery.type=single-node
       - xpack.security.enabled=false
@@ -202,6 +210,7 @@ services:
   logstash:
     image: docker.elastic.co/logstash/logstash:8.15.0
     container_name: logstash
+    restart: always
     ports:
       - "5044:5044"
     volumes:
@@ -214,6 +223,7 @@ services:
   kibana:
     image: docker.elastic.co/kibana/kibana:8.15.0
     container_name: kibana
+    restart: always
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
       - SERVER_HOST=0.0.0.0
@@ -232,6 +242,7 @@ services:
       context: ./services/graphql-gateway
       dockerfile: Dockerfile
     container_name: graphql-gateway
+    restart: always
     ports:
       - "8002:8000" # Puerto externo 8002 para no chocar con Auth o Laravel
     depends_on:
@@ -249,7 +260,6 @@ volumes:
   pg_data_rf:
   mongo_notificaciones_data:
   mongo_auth_data:
-
 
 networks:
   siat-net:

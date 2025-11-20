@@ -1,16 +1,19 @@
 import strawberry
 from typing import List, Optional
 import httpx
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from strawberry.fastapi import GraphQLRouter
 
-# --- 1. DEFINICIÓN DE TIPOS ---
+# ============================================================
+# 1. DEFINICIÓN DE TIPOS GRAPHQL
+# ============================================================
 
 @strawberry.type
 class User:
     id: str
     username: str
     email: str
+
 
 @strawberry.type
 class Empresa:
@@ -19,14 +22,16 @@ class Empresa:
     nit: str
     cufd_vigente: Optional[str] = None
 
+
 @strawberry.type
 class Factura:
     cuf: str
     fecha_emision: str
     monto_total: float
     estado: str
-    empresa_id: str 
+    empresa_id: str
     usuario_id: str
+
 
 @strawberry.type
 class Notificacion:
@@ -34,50 +39,64 @@ class Notificacion:
     mensaje: str
     leida: bool
 
-# --- 2. RESOLVERS (CONECTADOS A TUS MICROSERVICIOS REALES) ---
 
+# ============================================================
+# 2. RESOLVERS QUE CONSUMEN TUS MICROSERVICIOS
+# ============================================================
+
+# --- Auth Service (no requiere token) ---
 async def get_users_from_auth() -> List[User]:
-    # Contenedor: auth-service | Puerto: 8000
-    url = "http://auth-service:8000/users" 
+    url = "http://auth-service:8000/users"
     async with httpx.AsyncClient() as client:
         try:
             res = await client.get(url)
             if res.status_code == 200:
-                # Nota: Tu Auth Service devuelve "_id", aquí lo mapeamos a "id"
-                return [User(id=str(u["_id"]), username=u["username"], email=u["email"]) for u in res.json()]
+                return [
+                    User(
+                        id=str(u["_id"]),
+                        username=u["username"],
+                        email=u["email"],
+                    )
+                    for u in res.json()
+                ]
         except Exception as e:
             print(f"⚠️ Error Auth Service: {e}")
-        return []
 
-async def get_empresas_from_nest() -> List[Empresa]:
-    # Contenedor: servicio-empresas-cufd | Puerto: 3000 (Estándar NestJS)
-    # RUTA PENDIENTE: Verifica si es /empresas o /api/empresas
+    return []
+
+
+# --- Empresas (NestJS) *PROTEGIDO* ---
+async def get_empresas_from_nest(info) -> List[Empresa]:
+    token = info.context["request"].headers.get("authorization")
+
     url = "http://servicio-empresas-cufd:3000/empresas"
     async with httpx.AsyncClient() as client:
         try:
-            res = await client.get(url)
+            res = await client.get(url, headers={"Authorization": token})
             if res.status_code == 200:
-                data = res.json()
                 return [
                     Empresa(
-                        id=str(e.get("id", "")), 
-                        razon_social=e.get("razon_social", "Sin Nombre"), 
+                        id=str(e.get("_id", "")),
+                        razon_social=e.get("razonSocial", "Sin Nombre"),
                         nit=e.get("nit", "0"),
-                        cufd_vigente=e.get("cufd")
-                    ) for e in data
+                        cufd_vigente=e.get("cufd"),
+                    )
+                    for e in res.json()
                 ]
         except Exception as e:
             print(f"⚠️ Error Empresas (NestJS): {e}")
-        return []
 
-async def get_facturas_from_go() -> List[Factura]:
-    # Contenedor: recepcion_facturacion | Puerto: 8080 (Estándar Go)
-    url = "http://recepcion_facturacion:8080/facturas"
+    return []
+
+# --- Facturación GO *PROTEGIDO* ---
+async def get_facturas_from_go(info) -> List[Factura]:
+    token = info.context["request"].headers.get("authorization")
+
+    url = "http://recepcion_facturacion:3002/api/v1/facturacion/facturas"
     async with httpx.AsyncClient() as client:
         try:
-            res = await client.get(url)
+            res = await client.get(url, headers={"Authorization": token})
             if res.status_code == 200:
-                data = res.json()
                 return [
                     Factura(
                         cuf=f.get("cuf", ""),
@@ -85,76 +104,89 @@ async def get_facturas_from_go() -> List[Factura]:
                         monto_total=float(f.get("monto", 0)),
                         estado=f.get("estado", "Desconocido"),
                         empresa_id=str(f.get("empresa_id", "")),
-                        usuario_id=str(f.get("usuario_id", ""))
-                    ) for f in data
+                        usuario_id=str(f.get("usuario_id", "")),
+                    )
+                    for f in res.json()
                 ]
         except Exception as e:
             print(f"⚠️ Error Facturación (Go): {e}")
-        return []
 
+    return []
+
+
+# --- Notificaciones Laravel (no requiere token) ---
 async def get_notificaciones_from_laravel() -> List[Notificacion]:
-    # Contenedor: notifications | Puerto: 8000 (Visto en tu docker-compose)
-    url = "http://notifications:8000/api/notificaciones" # Laravel suele usar prefijo /api
+    url = "http://notifications:8000/api/notificaciones"
     async with httpx.AsyncClient() as client:
         try:
             res = await client.get(url)
             if res.status_code == 200:
-                data = res.json()
                 return [
                     Notificacion(
                         id=int(n.get("id", 0)),
                         mensaje=n.get("mensaje", ""),
-                        leida=bool(n.get("leida", False))
-                    ) for n in data
+                        leida=bool(n.get("leida", False)),
+                    )
+                    for n in res.json()
                 ]
         except Exception as e:
             print(f"⚠️ Error Notificaciones (Laravel): {e}")
-        return []
 
-# --- 3. QUERY PRINCIPAL ---
+    return []
+
+
+# ============================================================
+# 3. SCHEMA DE QUERIES
+# ============================================================
 
 @strawberry.type
 class Query:
-
-    # Proxies directos
     @strawberry.field
     async def users(self) -> List[User]:
         return await get_users_from_auth()
 
     @strawberry.field
-    async def empresas(self) -> List[Empresa]:
-        return await get_empresas_from_nest()
+    async def empresas(self, info) -> List[Empresa]:
+        return await get_empresas_from_nest(info)
 
     @strawberry.field
-    async def facturas(self) -> List[Factura]:
-        return await get_facturas_from_go()
-        
+    async def facturas(self, info) -> List[Factura]:
+        return await get_facturas_from_go(info)
+
     @strawberry.field
     async def notificaciones(self) -> List[Notificacion]:
         return await get_notificaciones_from_laravel()
 
-    # Consulta Combinada (Ejemplo de integración)
     @strawberry.field
-    async def reporte_completo(self) -> List[str]:
-        facturas = await get_facturas_from_go()
-        empresas = await get_empresas_from_nest()
-        
-        # Mapa para buscar rápido el nombre de la empresa
-        mapa_empresas = {str(e.id): e.razon_social for e in empresas}
-        
-        reporte = []
-        for f in facturas:
-            empresa = mapa_empresas.get(f.empresa_id, "Empresa Desconocida")
-            reporte.append(f"Factura {f.cuf} ({f.monto_total} Bs) - Emitida por: {empresa}")
-        return reporte
+    async def reporte_completo(self, info) -> List[str]:
+        facturas = await get_facturas_from_go(info)
+        empresas = await get_empresas_from_nest(info)
 
-# --- 4. CONFIGURACIÓN APP ---
+        mapa_empresas = {e.id: e.razon_social for e in empresas}
+
+        return [
+            f"Factura {f.cuf} ({f.monto_total} Bs) - Emitida por: {mapa_empresas.get(f.empresa_id, 'Empresa Desconocida')}"
+            for f in facturas
+        ]
+
+
+# ============================================================
+# 4. CONFIGURACIÓN APIS Y CONTEXTOS
+# ============================================================
 
 schema = strawberry.Schema(query=Query)
-graphql_app = GraphQLRouter(schema)
+
+async def get_context(request: Request):
+    return {"request": request}
+
+graphql_app = GraphQLRouter(
+    schema=schema,
+    context_getter=get_context,
+)
 
 app = FastAPI(title="SIAT Gateway GraphQL")
 app.include_router(graphql_app, prefix="/graphql")
+
 
 @app.get("/health")
 async def health_check():

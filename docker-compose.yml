@@ -10,7 +10,18 @@ services:
     volumes:
       - ./reverse-proxy/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
+      - frontend
       - servicio-empresas-cufd
+      - ms_rfacturacion
+      - auth-service
+    networks:
+      - siat-net
+
+  frontend:
+    build:
+      context: ./facturacion-frontend
+      dockerfile: Dockerfile
+    container_name: facturacion-frontend
     networks:
       - siat-net
 
@@ -26,10 +37,10 @@ services:
       # Base de datos Mongo para Auth
       - DATABASE_URL=mongodb://mongo_auth:27017/authdb
 
-      # RabbitMQ usando las mismas credenciales del compose
+      # RabbitMQ
       - RABBITMQ_URL=amqp://notifier:notifier123@rabbitmq/
 
-      # Clave JWT (debe ser la misma siempre mientras dure el entorno)
+      # Clave JWT
       - SECRET_KEY=ESTA_ES_UNA_CLAVE_MUY_SECRETA_PARA_CAMBIAR_EN_PROD
     depends_on:
       - mongo_auth

@@ -48,7 +48,10 @@ services:
     env_file:
       - .env.ms_rfacturacion
     depends_on:
-      - db_postgres_rf
+      servicio-empresas-cufd:
+        condition: service_healthy
+      db_postgres_rf:
+        condition: service_started
     networks:
       - siat-net
 
@@ -82,6 +85,11 @@ services:
       - logstash
     networks:
       - siat-net
+    healthcheck:
+      test: [ "CMD", "sh", "-c", "netstat -tln | grep 50053" ]
+      interval: 5s
+      timeout: 2s
+      retries: 10
 
   # Mongo del servicio empresas
   mongo_empresas:
@@ -204,7 +212,7 @@ services:
       - elasticsearch
     networks:
       - siat-net
-  
+
   # ======================================
   # GATEWAY GRAPHQL (Integrador)
   # ======================================
